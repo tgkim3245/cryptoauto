@@ -28,27 +28,38 @@ def df_to_json(df, file_name, record_date = True):
     return js
 
 def json_to_df(file_name):
-    df = pd.read_json(
-        BasePath+file_name+'.json', 
-        orient='split')
+    try:
+        df = pd.read_json(
+            BasePath+file_name+'.json', 
+            orient='split')
 
-    return df
+        return df
+    except (FileNotFoundError,ValueError) as e:
+        print(e)
+        return 'json읽기에러'
 
-def dict_tickers_to_json(dict, folder_name):
-    date = datetime.datetime.now().strftime('_%y%m%d_%H%M%S')
+def dict_tickers_to_json(dict, folder_name, record_date=True):
+    if record_date==True:
+        date = datetime.datetime.now().strftime('_%y%m%d_%H%M%S')
+    else:
+        date=''
     folder_name = folder_name + date
     createFolder(BasePath+folder_name)
     for dict_key in dict:
         df_to_json(dict[dict_key], folder_name+'/'+dict_key, False)
 
 def json_to_dict_tickers(folder_name):
-    dict_tickers = {}
-    for file_name in os.listdir(BasePath+folder_name):
-        file_name = Path(file_name).stem #확장자 때기
-        df = json_to_df(folder_name+'/'+file_name)
-        dict_tickers[file_name] = df
-    
-    return dict_tickers
+    try:
+        dict_tickers = {}
+        for file_name in os.listdir(BasePath+folder_name):
+            file_name = Path(file_name).stem #확장자 때기
+            df = json_to_df(folder_name+'/'+file_name)
+            dict_tickers[file_name] = df
+        
+        return dict_tickers
+    except (FileNotFoundError,ValueError) as e:
+        print(e)
+        return "json읽기에러"
 
 if __name__ == "__main__":
     # df = pyupbit.get_ohlcv("KRW-IQ", count=5, interval=5)
@@ -56,6 +67,8 @@ if __name__ == "__main__":
     # print("df",df)
     # df_to_json(df,'test')
 
-    # rdf = json_to_df('test')
-    # print('rdf',rdf)
-    print(datetime.datetime.now().strftime('_%y%m%d_%H%M%S'))
+    rdf = json_to_df('KRW-BTC')
+    print(rdf)
+    # print(datetime.datetime.now().strftime('_%y%m%d_%H%M%S'))
+    # dictt=json_to_dict_tickers('min1_10_220721_2135')
+    # print(dictt)

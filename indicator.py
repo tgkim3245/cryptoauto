@@ -6,6 +6,7 @@ import plotly.graph_objects as go
 import plotly.subplots as ms
 import re
 import random
+import numpy as np
 
 def BollingerBands(df, w=20, k=2):
     # w = 기준 이동평균일 
@@ -19,6 +20,9 @@ def BollingerBands(df, w=20, k=2):
     #하한선 (LBB) : 중심선 - (표준편차 × K)
     df["BB_ubb"]=df.apply(lambda x: x["BB_mbb"]+k*x["BB_ma"+str(w)+"_std"],1)
     df["BB_lbb"]=df.apply(lambda x: x["BB_mbb"]-k*x["BB_ma"+str(w)+"_std"],1)
+
+
+    df['BB_walking'] = df.apply(lambda x: True if x['close']>x['BB_ubb'] else False,1)
 
     ubb = df['BB_ubb'].iloc[-1]
     mbb = df['BB_mbb'].iloc[-1]
@@ -200,13 +204,14 @@ def drawing_plot(df,*args):
 
 if __name__ == "__main__":
     df = pyupbit.get_ohlcv('KRW-BTC',interval='day', count=200)
-    MovingAverage(df, span=5)
-    MovingAverage(df, span=20)
-    MovingAverage(df, span=60)
+    # MovingAverage(df, span=5)
+    # MovingAverage(df, span=20)
+    # MovingAverage(df, span=60)
     BollingerBands(df)
-    RelativeStrengthIndex(df)
-    MovingAvgConvDiv(df)
+    # RelativeStrengthIndex(df)
+    # MovingAvgConvDiv(df)
 
     print(df)
-    drawing_plot(df, 'candle','volume','MA5','MA20','BB','RSI','MACD')
+    # drawing_plot(df, 'candle','volume','MA5','MA20','BB','RSI','MACD')
+
 

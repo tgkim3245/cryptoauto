@@ -8,7 +8,7 @@ import time, datetime
 from dateutil.relativedelta import relativedelta
 from json_file_convert import * 
 from indicator import *
-
+from tqdm import tqdm
 
 def get_cnt_refresh(interval, last_timestamp):
     """
@@ -47,42 +47,54 @@ def get_cnt_refresh(interval, last_timestamp):
 
     return cnt +1
 
-def refresh_dict_tickers(dict_tickers, _interval="day", _count=10, _fiat="KRW"):  
+def refresh_dict_tickers(_interval="day", _count=10, _fiat="KRW"):  
     '''
     마켓의 모든 ticker를 df으로 일정갯수로 저장/갱신
+    get_ohlcv 함수 자체가 결측인덱스가 존재함
     '''
+    file_name = _interval+'_'+_fiat
+    dict_tickers = json_to_dict_tickers(file_name)
+
     tickers_list = pyupbit.get_tickers(fiat=_fiat)
-    # tickers_list = ['KRW-BTC','KRW-ETH']
-       
-    for ticker in tickers_list:
-        if ticker in dict_tickers: #기존목록에 있으면
-            cnt = get_cnt_refresh(_interval, dict_tickers[ticker].index[-1]) #몇개를 불러와야하는지 구해서
-            if cnt > _count or cnt+len(dict_tickers[ticker].index) < _count : #불러온 dict_tickers 가 너무 옛날자료 라면 or 새로채우는게 맞으면
-                del(dict_tickers[ticker]) #있던거 지우고
-                dict_tickers[ticker] = pyupbit.get_ohlcv(ticker, interval=_interval, count=_count)
-            else:
-                df = pyupbit.get_ohlcv(ticker, interval=_interval, count=cnt) #구한갯수만큼 불러와서
-                dict_tickers[ticker] = pd.concat([dict_tickers[ticker], df]) #기존거랑 합치기
-                dict_tickers[ticker] = dict_tickers[ticker].loc[~dict_tickers[ticker].index.duplicated(keep='last')] #합치고 index가 같은 건 df(최신)걸로 남기고 중복제거
-                dict_tickers[ticker] = dict_tickers[ticker].iloc[-_count:, :] #행의 갯수를 _count만큼만 남기고 위에서 부터 삭제 
-        else:  #새로운 코인 or 처음 실행
+    # tickers_list = ['KRW-BTC','KRW-ETH','KRW-CELO']
+
+    if dict_tickers=='json읽기에러': #처음실행 or 파일없음
+        print('새로받아옴')
+        dict_tickers={}
+        for ticker in tqdm(tickers_list, desc=file_name):
             dict_tickers[ticker] = pyupbit.get_ohlcv(ticker, interval=_interval, count=_count)
+            time.sleep(0.02)
+        # return dict_tickers
+    else:
+        print('읽어옴')
+        for ticker in tqdm(tickers_list, desc=file_name):
+            if ticker in dict_tickers: #기존목록에 있으면
+                cnt = get_cnt_refresh(_interval, dict_tickers[ticker].index[-1]) #몇개를 불러와야하는지 구해서
+                if cnt > _count or cnt+len(dict_tickers[ticker].index) < _count : #불러온 dict_tickers 가 너무 옛날자료 라면 or 새로채우는게 맞으면
+                    del(dict_tickers[ticker]) #있던거 지우고
+                    dict_tickers[ticker] = pyupbit.get_ohlcv(ticker, interval=_interval, count=_count)
+                else:
+                    df = pyupbit.get_ohlcv(ticker, interval=_interval, count=cnt) #구한갯수만큼 불러와서
+                    dict_tickers[ticker] = pd.concat([dict_tickers[ticker], df]) #기존거랑 합치기
+                    dict_tickers[ticker] = dict_tickers[ticker].loc[~dict_tickers[ticker].index.duplicated(keep='last')] #합치고 index가 같은 건 df(최신)걸로 남기고 중복제거
+                    dict_tickers[ticker] = dict_tickers[ticker].iloc[-_count:, :] #행의 갯수를 _count만큼만 남기고 위에서 부터 삭제 
+            else:  #새로운 코인 추가 
+                dict_tickers[ticker] = pyupbit.get_ohlcv(ticker, interval=_interval, count=_count)
+            
+            # print('현재',ticker, '갱신완료', tickers_list.index(ticker)/len(tickers_list)*100,'% 진행중')
+            time.sleep(0.02)
         
-        print('현재',ticker, '갱신완료', tickers_list.index(ticker)/len(tickers_list)*100,'% 진행중')
-        time.sleep(0.1)
+    dict_tickers_to_json(dict_tickers, file_name, record_date=False)
+    return dict_tickers
 
 
 #모든 ticker의 ohlcv 갱신
-def preprocessing_dict_tickers(dict_tickers, _interval="day", _count=10, _fiat="KRW"): 
+def preprocessing_dict_tickers(dict_tickers): 
     """ 
-    ohlcv 갱신후
     indicator 추가
     """ 
-
-    refresh_dict_tickers(dict_tickers, _interval, _count, _fiat)
-    
     for ticker, df in dict_tickers.items():
-        df['state'] = NaN #sell buy 등 매수/매도 명령
+        df['state'] = NaN # 차트상태
         BollingerBands(df)
         MovingAverage(df,span=10)
         MovingAverage(df,span=30)
@@ -106,7 +118,18 @@ if __name__ == "__main__":
     # print(mydict)
 
     # time.sleep(60*5)
-    # refresh_dict_tickers(mydict,'minute1',10)
+    while 1:
+        # a= refresh_dict_tickers("minute1",200)
+        # b= refresh_dict_tickers("minute10",200)
+        d= refresh_dict_tickers("minute60",200)
+        for t, df in d.items():
+            listm = []
+            for i in range(1,10):
+                listm.append(df.index[-i].minute)
+            
+            print(t, listm)
+        
+        print(json_to_dict_tickers('minute60_KRW'))
     # print(mydict)
 
 
@@ -138,17 +161,19 @@ if __name__ == "__main__":
     # print('a'in dicc)
     # print('d'in dicc)
     
-    df1 = pd.DataFrame({'a':['a0','a1','a2','a3'],
-                   'b':['b0','b1','b2','b3'],
-                   'c':['c0','c1','c2','c3']},
-                  index = [5,6,7,8])
+    # df1 = pd.DataFrame({'a':['a0','a1','a2','a3'],
+    #                'b':['b0','b1','b2','b3'],
+    #                'c':['c0','c1','c2','c3']},
+    #               index = [5,6,7,8])
 
-    df2 = pd.DataFrame({'a':['na2','na3','na4','na5'],
-                    'b':['nb2','nb3','nb4','nb5'],
-                    'c':['nc2','nc3','nc4','nc5']},
-                    index = [8,9,10,11])
-    df1['state'] = NaN
-    print(df1)
+    # df2 = pd.DataFrame({'a':['na2','na3','na4','na5'],
+    #                 'b':['nb2','nb3','nb4','nb5'],
+    #                 'c':['nc2','nc3','nc4','nc5']},
+    #                 index = [8,9,10,11])
+    # df1['state'] = NaN
+    # df1['state'].iloc[-1] = 20
+    # print(type(df1['state']))
+    # print( df1)
 
 
 
