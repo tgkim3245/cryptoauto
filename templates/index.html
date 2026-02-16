@@ -1,0 +1,903 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CryptoAuto Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --accent-color: #38bdf8;
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --success: #10b981;
+            --danger: #ef4444;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1200px;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            width: 100%;
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            background: linear-gradient(to right, #38bdf8, #818cf8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin: 0;
+        }
+
+        .status-badge {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .status-running {
+            background: rgba(16, 185, 129, 0.2);
+            color: var(--success);
+        }
+
+        .status-stopped {
+            background: rgba(239, 68, 68, 0.2);
+            color: var(--danger);
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .card {
+            background-color: var(--card-bg);
+            border-radius: 16px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .card-title {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            font-weight: 600;
+        }
+
+        .card-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+
+        .card-sub {
+            font-size: 0.875rem;
+            margin-top: 8px;
+        }
+
+        .chart-container {
+            width: 100%;
+            height: 450px;
+            margin-top: 20px;
+            background: var(--card-bg);
+            border-radius: 16px;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 12px;
+            margin-top: 20px;
+        }
+
+        button {
+            padding: 12px 24px;
+            border-radius: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: none;
+            flex: 1;
+        }
+
+        .btn-start {
+            background-color: var(--success);
+            color: white;
+        }
+
+        .btn-start:hover {
+            transform: scale(1.02);
+            background-color: #059669;
+        }
+
+        .btn-stop {
+            background-color: var(--danger);
+            color: white;
+        }
+
+        .btn-stop:hover {
+            transform: scale(1.02);
+            background-color: #dc2626;
+        }
+
+        .log-container {
+            max-height: 200px;
+            overflow-y: auto;
+            background: #0f172a;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8rem;
+            color: #10b981;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .timeframe-group {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn-time {
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            cursor: pointer;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: transparent;
+            color: var(--text-secondary);
+            transition: all 0.2s;
+        }
+
+        .btn-time:hover {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-primary);
+        }
+
+        .btn-time.active {
+            background: var(--accent-color);
+            color: #fff;
+            border-color: var(--accent-color);
+        }
+
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(15, 23, 42, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            display: none;
+            backdrop-filter: blur(4px);
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid rgba(255, 255, 255, 0.1);
+            border-left-color: var(--accent-color);
+            border-radius: 50%;
+            animation: spin 1s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+            box-shadow: 0 0 20px rgba(56, 189, 248, 0.2);
+        }
+
+        @keyframes spin {
+            from {
+                transform: rotate(0deg);
+            }
+
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* 도움말 아이콘 및 툴팁 스타일 */
+        .info-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 14px;
+            height: 14px;
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--text-secondary);
+            border-radius: 50%;
+            font-size: 10px;
+            margin-left: 4px;
+            cursor: help;
+            position: relative;
+            vertical-align: middle;
+        }
+
+        .info-icon:hover {
+            background: var(--accent-color);
+            color: #0f172a;
+        }
+
+        .tooltip {
+            visibility: hidden;
+            width: 200px;
+            background-color: #334155;
+            color: #fff;
+            text-align: left;
+            border-radius: 6px;
+            padding: 8px 12px;
+            position: absolute;
+            z-index: 1000;
+            bottom: 125%;
+            left: 50%;
+            transform: translateX(-50%);
+            opacity: 0;
+            transition: opacity 0.2s;
+            font-size: 0.75rem;
+            line-height: 1.4;
+            font-weight: normal;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            pointer-events: none;
+        }
+
+        .tooltip::after {
+            content: "";
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            margin-left: -5px;
+            border-width: 5px;
+            border-style: solid;
+            border-color: #334155 transparent transparent transparent;
+        }
+
+        .info-icon:hover .tooltip {
+            visibility: visible;
+            opacity: 1;
+        }
+    </style>
+    <script src="/static/lightweight-charts.js"></script>
+</head>
+
+<body>
+    <div class="container">
+        <!-- ... (Header and Status Badge code remains same) ... -->
+        <header>
+            <h1>CryptoAuto <span style="color: var(--text-secondary); font-weight: 400;">PRO</span></h1>
+            <div id="statusBadge" class="status-badge status-stopped">
+                <div id="statusDot" style="width: 8px; height: 8px; border-radius: 50%; background: currentColor;">
+                </div>
+                <span id="statusText">정지됨</span>
+            </div>
+        </header>
+
+        <div class="grid">
+            <div class="card">
+                <div class="card-title">현재 비트코인 시세</div>
+                <div id="btcPrice" class="card-value">0 KRW</div>
+                <div id="targetPrice" class="card-sub" style="color: var(--accent-color);">목표가: 대기 중</div>
+            </div>
+            <div class="card">
+                <div class="card-title">계좌 잔고</div>
+                <div id="totalBalance" class="card-value">0 KRW</div>
+                <div id="btcBalance" class="card-sub">0.00000000 BTC</div>
+            </div>
+            <div class="card">
+                <div class="card-title">프로그램 제어</div>
+                <div style="margin-bottom: 15px;">
+                    <label
+                        style="font-size: 0.8rem; color: var(--text-secondary); display: block; margin-bottom: 5px;">매매
+                        전략 선택</label>
+                    <select id="strategySelect"
+                        style="width: 100%; padding: 10px; background: #0f172a; border: 1px solid rgba(255,255,255,0.1); color: white; border-radius: 8px;">
+                        <option value="변동성 돌파">변동성 돌파 전략</option>
+                        <option value="이동평균 골든크로스">이동평균 골든크로스 (준비 중)</option>
+                        <option value="RSI 과매도/과매수">RSI 과매도/과매수 (준비 중)</option>
+                        <option value="볼린저 밴드 하단 매수">볼린저 밴드 하단 매수 (준비 중)</option>
+                    </select>
+                </div>
+                <div class="btn-group">
+                    <button id="startBtn" class="btn-start">자동매매 시작</button>
+                    <button id="stopBtn" class="btn-stop">자동매매 중지</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="card" style="padding: 0; position: relative;">
+            <div id="loading" class="loading-overlay">
+                <div class="spinner"></div>
+            </div>
+            <div
+                style="display: flex; justify-content: space-between; align-items: center; padding: 1.5rem 1.5rem 0 1.5rem;">
+                <div class="card-title" style="margin: 0;">실시간 비트코인 차트</div>
+                <div class="timeframe-group">
+                    <button class="btn-time" onclick="changeInterval('minute1', this)">1분</button>
+                    <button class="btn-time active" onclick="changeInterval('minute5', this)">5분</button>
+                    <button class="btn-time" onclick="changeInterval('minute15', this)">15분</button>
+                    <button class="btn-time" onclick="changeInterval('minute30', this)">30분</button>
+                    <button class="btn-time" onclick="changeInterval('minute60', this)">1시간</button>
+                    <button class="btn-time" onclick="changeInterval('minute240', this)">4시간</button>
+                    <button class="btn-time" onclick="changeInterval('day', this)">1일</button>
+                    <button class="btn-time" onclick="changeInterval('week', this)">주봉</button>
+                    <button class="btn-time" onclick="changeInterval('month', this)">월봉</button>
+
+                </div>
+            </div>
+            <div id="chart" class="chart-container"></div>
+            <!-- RSI & MACD 차트 추가 -->
+            <div id="chart-rsi" class="chart-container" style="height: 150px; margin-top: 5px;"></div>
+            <div id="chart-macd" class="chart-container" style="height: 150px; margin-top: 5px;"></div>
+        </div>
+
+        <div class="grid" style="margin-top: 20px;">
+            <div class="card">
+                <div class="card-title">백테스팅 설정</div>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 10px;">
+                    <div style="flex: 1; min-width: 200px;">
+                        <label style="font-size: 0.8rem; color: var(--text-secondary);">백테스트 전략</label>
+                        <select id="btStrategy"
+                            style="width: 100%; padding: 10px; background: #0f172a; border: 1px solid rgba(255,255,255,0.1); color: white; border-radius: 8px;">
+                            <option value="변동성 돌파">변동성 돌파 전략</option>
+                            <option value="이동평균 골든크로스">이동평균 골든크로스</option>
+                            <option value="RSI 과매도/과매수">RSI 과매도/과매수</option>
+                        </select>
+                    </div>
+                </div>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <div style="flex: 1;">
+                        <label style="font-size: 0.8rem; color: var(--text-secondary);">기간 (일)</label>
+                        <select id="btPeriod"
+                            style="width: 100%; padding: 10px; background: #0f172a; border: 1px solid rgba(255,255,255,0.1); color: white; border-radius: 8px;">
+                            <option value="7">최근 7일</option>
+                            <option value="30" selected>최근 30일</option>
+                            <option value="90">최근 3개월</option>
+                            <option value="180">최근 6개월</option>
+                        </select>
+                    </div>
+                    <div style="flex: 1;">
+                        <label style="font-size: 0.8rem; color: var(--text-secondary);">K값 (0.1~1.0)</label>
+                        <input type="number" id="btK" value="0.5" step="0.1" min="0.1" max="1.0"
+                            style="width: 100%; padding: 10px; background: #0f172a; border: 1px solid rgba(255,255,255,0.1); color: white; border-radius: 8px;">
+                    </div>
+                </div>
+                <button id="runBacktestBtn"
+                    style="width: 100%; margin-top: 15px; background: var(--accent-color); color: #0f172a;">백테스팅
+                    실행</button>
+            </div>
+            <div class="card">
+                <div class="card-title">백테스팅 결과</div>
+                <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 0;">
+                    <div>
+                        <div class="card-sub">수익률</div>
+                        <div id="btReturn" style="font-size: 1.2rem; font-weight: bold;">-</div>
+                    </div>
+                    <div>
+                        <div class="card-sub">
+                            MDD
+                            <span class="info-icon">?
+                                <span class="tooltip"><b>최대 낙폭 (Maximum Drawdown)</b><br>투자 기간 중 최고점 대비 최대로 하락했던 폭을
+                                    나타냅니다. 리스크 관리를 위한 핵심 지표입니다.</span>
+                            </span>
+                        </div>
+                        <div id="btMdd" style="font-size: 1.2rem; font-weight: bold; color: var(--danger);">-</div>
+                    </div>
+                    <div>
+                        <div class="card-sub">승률</div>
+                        <div id="btWinRate" style="font-size: 1.2rem; font-weight: bold;">-</div>
+                    </div>
+                    <div>
+                        <div class="card-sub">
+                            CAGR
+                            <span class="info-icon">?
+                                <span class="tooltip"><b>연평균 수익률 (Compound Annual Growth Rate)</b><br>투자 기간의 수익률을 연간
+                                    평균으로 환산한 지표입니다. 복리 효과를 포함한 실제 수익률을 의미합니다.</span>
+                            </span>
+                        </div>
+                        <div id="btCagr" style="font-size: 1.2rem; font-weight: bold;">-</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card" style="padding: 0; margin-top: 20px; display: none;" id="btChartCard">
+            <div class="card-title" style="padding: 1.5rem 1.5rem 0 1.5rem;">누적 수익률 (Equity Curve)</div>
+            <div id="bt-chart" class="chart-container" style="height: 300px;"></div>
+        </div>
+
+        <div class="card" style="margin-top: 20px;">
+            <div class="card-title">매매 로그</div>
+            <div id="logContent" class="log-container">
+                데이터를 불러오는 중...
+            </div>
+        </div>
+    </div>
+
+    <script>
+        console.log("CryptoAuto Dashboard Start");
+        let currentInterval = 'minute5';
+        let currentBacktestMarkers = []; // 백테스트 매매 마커 저장용 전역 변수
+
+        // 서버에서 주입된 초기 데이터 (Jinja2)
+        const serverInitialData = {{ initial_data | safe }};
+        console.log("Server initial data loaded:", serverInitialData.length);
+
+        // 공통 차트 옵션
+        const chartOptions = {
+            layout: { background: { color: '#1e293b' }, textColor: '#94a3b8' },
+            grid: { vertLines: { color: 'rgba(255, 255, 255, 0.05)' }, horzLines: { color: 'rgba(255, 255, 255, 0.05)' } },
+            crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
+            rightPriceScale: { borderColor: 'rgba(255, 255, 255, 0.1)' },
+            timeScale: { borderColor: 'rgba(255, 255, 255, 0.1)', timeVisible: true },
+        };
+
+        let chart, candleSeries, ma1Series, ma2Series, bbUpperSeries, bbLowerSeries;
+        let chartRsi, rsiSeries, rsiLine70, rsiLine30;
+        let chartMacd, macdSeries, macdSignalSeries, macdHistSeries;
+
+        try {
+            console.log("Initializing charts...");
+            // 1. 메인 차트
+            chart = LightweightCharts.createChart(document.getElementById('chart'), chartOptions);
+            candleSeries = chart.addSeries(LightweightCharts.CandlestickSeries, {
+                upColor: '#10b981', downColor: '#ef4444', borderUpColor: '#10b981', borderDownColor: '#ef4444', wickUpColor: '#10b981', wickDownColor: '#ef4444'
+            });
+            ma1Series = chart.addSeries(LightweightCharts.LineSeries, { color: '#f59e0b', lineWidth: 1, title: 'MA5' });
+            ma2Series = chart.addSeries(LightweightCharts.LineSeries, { color: '#818cf8', lineWidth: 1, title: 'MA20' });
+            bbUpperSeries = chart.addSeries(LightweightCharts.LineSeries, { color: 'rgba(16, 185, 129, 0.3)', lineWidth: 1, title: 'BB Upper', visible: true });
+            bbLowerSeries = chart.addSeries(LightweightCharts.LineSeries, { color: 'rgba(16, 185, 129, 0.3)', lineWidth: 1, title: 'BB Lower', visible: true });
+
+            // 2. RSI 차트
+            chartRsi = LightweightCharts.createChart(document.getElementById('chart-rsi'), { ...chartOptions, height: 150 });
+            rsiSeries = chartRsi.addSeries(LightweightCharts.LineSeries, { color: '#a78bfa', lineWidth: 2, title: 'RSI(14)' });
+            rsiLine70 = chartRsi.addSeries(LightweightCharts.LineSeries, { color: '#ef4444', lineWidth: 1, lineStyle: 2 });
+            rsiLine30 = chartRsi.addSeries(LightweightCharts.LineSeries, { color: '#10b981', lineWidth: 1, lineStyle: 2 });
+
+            // 3. MACD 차트
+            chartMacd = LightweightCharts.createChart(document.getElementById('chart-macd'), { ...chartOptions, height: 150 });
+            macdSeries = chartMacd.addSeries(LightweightCharts.LineSeries, { color: '#38bdf8', lineWidth: 1, title: 'MACD' });
+            macdSignalSeries = chartMacd.addSeries(LightweightCharts.LineSeries, { color: '#f472b6', lineWidth: 1, title: 'Signal' });
+            macdHistSeries = chartMacd.addSeries(LightweightCharts.HistogramSeries, { color: '#94a3b8', title: 'Hist' });
+
+            console.log("Charts initialized successfully.");
+        } catch (err) {
+            console.error("Chart Initialization Error:", err);
+            alert("차트 초기화 오류: " + err.message);
+        }
+
+        // 차트 스크롤 및 지표 동기화 개선 (Logical Range 기반)
+        function syncCharts(charts) {
+            let isSyncing = false;
+            charts.forEach((c, index) => {
+                if (!c) return;
+                c.timeScale().subscribeVisibleLogicalRangeChange(range => {
+                    if (isSyncing || !range) return;
+                    isSyncing = true;
+                    charts.filter((item, i) => i !== index && item).forEach(other => {
+                        try {
+                            other.timeScale().setVisibleLogicalRange(range);
+                        } catch (e) { }
+                    });
+                    isSyncing = false;
+                });
+            });
+        }
+
+        // 십자선(Crosshair) 동기화 추가 (시간축 기준)
+        function syncCrosshair(charts) {
+            charts.forEach((c, index) => {
+                if (!c) return;
+                c.subscribeCrosshairMove(param => {
+                    if (!param.time) {
+                        charts.filter((_, i) => i !== index).forEach(other => other.clearCrosshairPosition());
+                        return;
+                    }
+                    charts.filter((_, i) => i !== index).forEach(other => {
+                        // 각 차트의 십자선을 동일한 시간축 위치로 이동 (가격은 0으로 설정하여 시간축만 표시)
+                        other.setCrosshairPosition(0, param.time, null);
+                    });
+                });
+            });
+        }
+
+        syncCharts([chart, chartRsi, chartMacd]);
+        syncCrosshair([chart, chartRsi, chartMacd]);
+
+        let isLoading = false;
+        let debounceTimer = null;
+        let allData = { candles: [], ma1: [], ma2: [], bbUpper: [], bbLower: [], rsi: [], macd: [], macdSignal: [], macdHist: [] };
+
+        async function fetchAndProcessData(to = null, count = 200) {
+            const url = to ? `/api/ohlcv?interval=${currentInterval}&to=${to}&count=${count}` : `/api/ohlcv?interval=${currentInterval}&count=${count}`;
+            console.log(`Fetching data: ${url}`);
+            const response = await fetch(url);
+            if (!response.ok) throw new Error('Network response was not ok');
+            const data = await response.json();
+
+            if (data.length === 0) return null;
+
+            const processed = {
+                candles: data.filter(d => d.open != null && d.close != null).map(d => ({
+                    time: d.time, open: d.open, high: d.high, low: d.low, close: d.close
+                })),
+                ma1: data.filter(d => d.ma1 != null && !isNaN(d.ma1)).map(d => ({ time: d.time, value: d.ma1 })),
+                ma2: data.filter(d => d.ma2 != null && !isNaN(d.ma2)).map(d => ({ time: d.time, value: d.ma2 })),
+                bbUpper: data.filter(d => d.bb_upper != null && !isNaN(d.bb_upper)).map(d => ({ time: d.time, value: d.bb_upper })),
+                bbLower: data.filter(d => d.bb_lower != null && !isNaN(d.bb_lower)).map(d => ({ time: d.time, value: d.bb_lower })),
+                rsi: data.filter(d => d.rsi != null && !isNaN(d.rsi)).map(d => ({ time: d.time, value: d.rsi })),
+                macd: data.filter(d => d.macd != null && !isNaN(d.macd)).map(d => ({ time: d.time, value: d.macd })),
+                macdSignal: data.filter(d => d.macd_signal != null && !isNaN(d.macd_signal)).map(d => ({ time: d.time, value: d.macd_signal })),
+                macdHist: data.filter(d => d.macd_hist != null && !isNaN(d.macd_hist)).map(d => ({
+                    time: d.time, value: d.macd_hist,
+                    color: d.macd_hist >= 0 ? 'rgba(16, 185, 129, 0.5)' : 'rgba(239, 68, 68, 0.5)'
+                }))
+            };
+            return processed;
+        }
+
+        async function updateChart(isLoadMore = false, isRealtime = false) {
+            if (isLoading) return;
+            if (!isRealtime) isLoading = true;
+            if (!isLoadMore && !isRealtime) document.getElementById('loading').style.display = 'flex';
+
+            try {
+                let toTime = null;
+                let count = isRealtime ? 50 : 200; // 실시간인 경우에도 지표 계산Context를 위해 50개 확보
+
+                if (isRealtime) {
+                    // 실시간 업데이트는 toTime 없이 가장 최신 것만 가져옴
+                    toTime = null;
+                } else if (isLoadMore && allData.candles.length > 0) {
+                    toTime = allData.candles[0].time;
+                }
+
+                const newData = await fetchAndProcessData(toTime, count);
+                if (!newData) {
+                    if (!isRealtime) isLoading = false;
+                    document.getElementById('loading').style.display = 'none';
+                    return;
+                }
+
+                // 데이터 병합 및 중복 제거 유틸리티
+                const mergeData = (key, items) => {
+                    if (!items || items.length === 0) return;
+                    if (!allData[key]) allData[key] = [];
+
+                    // 기존 데이터와 새 데이터를 합친 후 시간순 정렬 및 중복 제거(최신 우선)
+                    const map = new Map();
+                    allData[key].forEach(d => { if (d && d.time) map.set(d.time, d); });
+                    items.forEach(d => { if (d && d.time) map.set(d.time, d); });
+
+                    allData[key] = Array.from(map.values()).sort((a, b) => a.time - b.time);
+
+                    // 메모리 관리를 위해 너무 많은 데이터는 제거 (최근 1000개 유지)
+                    if (allData[key].length > 1000) {
+                        allData[key] = allData[key].slice(-1000);
+                    }
+                };
+
+                // 모든 지표 데이터 병합
+                Object.keys(newData).forEach(key => mergeData(key, newData[key]));
+
+                // 차트 업데이트 (setData는 항상 안전함)
+                candleSeries.setData(allData.candles);
+                ma1Series.setData(allData.ma1);
+                ma2Series.setData(allData.ma2);
+                bbUpperSeries.setData(allData.bbUpper);
+                bbLowerSeries.setData(allData.bbLower);
+                // 가시성 강제 적용 (버그 방지)
+                bbUpperSeries.applyOptions({ visible: true });
+                bbLowerSeries.applyOptions({ visible: true });
+                rsiSeries.setData(allData.rsi);
+                macdSeries.setData(allData.macd);
+                macdSignalSeries.setData(allData.macdSignal);
+                macdHistSeries.setData(allData.macdHist);
+
+                // 전역 백테스트 마커가 있다면 재적용 (setData 호출 후 마커가 사라지는 것 방지)
+                if (currentBacktestMarkers.length > 0 && typeof candleSeries.setMarkers === 'function') {
+                    console.log("Re-applying markers to main chart:", currentBacktestMarkers.length);
+                    candleSeries.setMarkers(currentBacktestMarkers);
+                }
+
+                if (!isRealtime && !isLoadMore) {
+                    chart.timeScale().fitContent();
+                    chartRsi.timeScale().fitContent();
+                    chartMacd.timeScale().fitContent();
+                }
+
+                // 가이드라인 업데이트
+                if (allData.candles.length > 0) {
+                    const start = allData.candles[0].time;
+                    const end = allData.candles[allData.candles.length - 1].time;
+                    rsiLine70.setData([{ time: start, value: 70 }, { time: end, value: 70 }]);
+                    rsiLine30.setData([{ time: start, value: 30 }, { time: end, value: 30 }]);
+                }
+
+            } catch (e) {
+                console.error('UpdateChart Error:', e);
+            } finally {
+                if (!isRealtime) isLoading = false;
+                document.getElementById('loading').style.display = 'none';
+            }
+        }
+
+        function changeInterval(interval, btn) {
+            console.log(`Interval change to: ${interval}`);
+            currentInterval = interval;
+            document.querySelectorAll('.btn-time').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            allData = { candles: [], ma5: [], ma20: [], bbUpper: [], bbLower: [], rsi: [], macd: [], macdSignal: [], macdHist: [] };
+            updateChart();
+        }
+
+        chart.timeScale().subscribeVisibleLogicalRangeChange(range => {
+            if (range && range.from < 5 && !isLoading) {
+                if (debounceTimer) clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(() => updateChart(true), 300);
+            }
+        });
+
+        async function updateStatus() {
+            try {
+                const response = await fetch('/api/status');
+                const data = await response.json();
+                document.getElementById('btcPrice').innerText = data.btc_price.toLocaleString() + ' KRW';
+                document.getElementById('totalBalance').innerText = data.total_krw.toLocaleString() + ' KRW';
+                document.getElementById('btcBalance').innerText = data.btc_balance.toFixed(8) + ' BTC';
+                document.getElementById('targetPrice').innerText = `목표가: ${data.target_price.toLocaleString()} KRW`;
+
+                const badge = document.getElementById('statusBadge');
+                const statusText = document.getElementById('statusText');
+                const strategySelect = document.getElementById('strategySelect');
+
+                if (data.is_running) {
+                    statusText.innerText = `실행 중 (${data.current_strategy})`;
+                    badge.className = 'status-badge status-running';
+                    strategySelect.disabled = true;
+                    strategySelect.value = data.current_strategy;
+                } else {
+                    statusText.innerText = '정지됨';
+                    badge.className = 'status-badge status-stopped';
+                    strategySelect.disabled = false;
+                }
+
+                const logContent = document.getElementById('logContent');
+                logContent.innerHTML = data.logs.join('<br>');
+                logContent.scrollTop = logContent.scrollHeight;
+            } catch (e) { console.error('Status update error:', e); }
+        }
+
+        document.getElementById('startBtn').onclick = async () => {
+            const strategy = document.getElementById('strategySelect').value;
+            await fetch('/api/start', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ strategy: strategy })
+            });
+            updateStatus();
+        };
+        document.getElementById('stopBtn').onclick = async () => { await fetch('/api/stop', { method: 'POST' }); updateStatus(); };
+
+        // 초기 실행
+        console.log("Starting initial data processes...");
+        updateStatus();
+
+        // 서버에서 받은 초기 데이터가 있다면 즉시 표시
+        if (serverInitialData && serverInitialData.length > 0) {
+            console.log("Applying server initial data...");
+            allData.candles = serverInitialData;
+            candleSeries.setData(allData.candles);
+            chart.timeScale().fitContent();
+            // 이후 지표 계산을 위해 한 번 더 fetch하여 지표가 포함된 데이터를 가져옴
+            updateChart();
+        } else {
+            updateChart();
+        }
+
+        window.setInterval(updateStatus, 2000);
+        window.setInterval(() => updateChart(false, true), 10000); // 10초마다 실시간 증분 업데이트
+
+        // 백테스팅
+        let btChart, btSeries;
+
+        // 타임프레임 변경 함수 (누락된 로직 복구)
+        function changeInterval(interval, btn) {
+            if (currentInterval === interval) return;
+            currentInterval = interval;
+
+            // 버튼 스타일 업데이트
+            document.querySelectorAll('.btn-time').forEach(b => b.classList.remove('active'));
+            if (btn) btn.classList.add('active');
+
+            console.log(`Changing interval to ${interval}`);
+
+            // 데이터 초기화
+            allData = { candles: [], ma1: [], ma2: [], bbUpper: [], bbLower: [], rsi: [], macd: [], macdSignal: [], macdHist: [] };
+
+            // 차트 데이터 클리어 (시각적 즉시 반응)
+            if (candleSeries) candleSeries.setData([]);
+            if (ma1Series) ma1Series.setData([]);
+            if (ma2Series) ma2Series.setData([]);
+            if (bbUpperSeries) bbUpperSeries.setData([]);
+            if (bbLowerSeries) bbLowerSeries.setData([]);
+            if (rsiSeries) rsiSeries.setData([]);
+            if (macdSeries) macdSeries.setData([]);
+            if (macdSignalSeries) macdSignalSeries.setData([]);
+            if (macdHistSeries) macdHistSeries.setData([]);
+
+            // 로딩 표시 및 업데이트 시작
+            document.getElementById('loading').style.display = 'flex';
+            updateChart();
+
+            // 실시간 업데이트 타이머 재설정
+            startRealtimeUpdates();
+        }
+
+        // 실시간 업데이트 타이머 관리
+        let updateIntervalId = null;
+        function startRealtimeUpdates() {
+            if (updateIntervalId) clearInterval(updateIntervalId);
+            // 2초마다 갱신 (너무 빠르면 과부하, 너무 느리면 답답함)
+            updateIntervalId = setInterval(() => {
+                updateChart(false, true);
+            }, 2000);
+        }
+
+        // 초기 실행
+        startRealtimeUpdates();
+
+        // [이전 코드와의 연결부]
+        function initBacktestChart() {
+            if (btChart) return;
+            const container = document.getElementById('bt-chart');
+            const width = container.clientWidth || document.getElementById('chart').clientWidth;
+            console.log("Initializing Backtest Chart. Width:", width);
+            btChart = LightweightCharts.createChart(container, {
+                ...chartOptions,
+                width: width,
+                height: 300
+            });
+            btSeries = btChart.addSeries(LightweightCharts.LineSeries, {
+                color: '#38bdf8',
+                lineWidth: 2,
+                title: '누적수익률'
+            });
+        }
+
+        document.getElementById('runBacktestBtn').onclick = async () => {
+            const btn = document.getElementById('runBacktestBtn');
+            const originalText = btn.innerText;
+            btn.innerText = '계산 중...';
+            btn.disabled = true;
+            try {
+                const strategy = document.getElementById('btStrategy').value;
+                const period = parseInt(document.getElementById('btPeriod').value);
+                const k = parseFloat(document.getElementById('btK').value);
+                const response = await fetch('/api/backtest', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ strategy, period, k })
+                });
+                const result = await response.json();
+                if (result.error) { alert('백테스팅 오류: ' + result.error); return; }
+                document.getElementById('btReturn').innerText = result.total_return + '%';
+                document.getElementById('btReturn').style.color = result.total_return >= 0 ? 'var(--success)' : 'var(--danger)';
+                document.getElementById('btMdd').innerText = result.mdd + '%';
+                document.getElementById('btWinRate').innerText = result.win_rate + '%';
+                document.getElementById('btCagr').innerText = result.cagr + '%';
+
+                // 차트 영역 표시 및 초기화
+                const btCard = document.getElementById('btChartCard');
+                btCard.style.display = 'block';
+
+                // [High Model Fix] 백테스트는 일봉 기준이므로, 메인 차트도 '1일'로 자동 전환하여 마커가 보이게 함
+                if (currentInterval !== 'day') {
+                    console.log("Auto-switching chart to 'day' interval for backtest visualization.");
+                    const dayBtn = document.querySelector("button[onclick=\"changeInterval('day', this)\"]");
+                    if (dayBtn) dayBtn.click(); // 버튼 클릭 트리거로 인터벌 변경 및 데이터 로딩 시작
+                }
+
+                initBacktestChart();
+
+                // 차트가 숨겨져 있다가 나타날 때 크기가 0일 수 있으므로 강제 재조정
+                const width = document.getElementById('chart').clientWidth;
+                btChart.applyOptions({ width: width });
+
+                console.log("Setting backtest data:", result.equity_curve.length, "points");
+                btSeries.setData(result.equity_curve);
+
+                // 백테스트 결과 차트에 마커 표시
+                if (result.markers && typeof btSeries.setMarkers === 'function') {
+                    btSeries.setMarkers(result.markers);
+                }
+
+                // 메인 캔들 차트에도 마커 표시를 위해 전역 변수 업데이트 및 즉시 적용
+                if (result.markers && result.markers.length > 0) {
+                    currentBacktestMarkers = result.markers;
+                    if (typeof candleSeries.setMarkers === 'function') {
+                        // 디버깅 로직 추가
+                        console.log("Applying markers to main chart directly after backtest:", currentBacktestMarkers.length);
+                        console.log("Sample marker time:", currentBacktestMarkers[0].time);
+
+                        // 현재 차트 데이터의 시간 범위 확인
+                        const currentData = allData.candles;
+                        if (currentData && currentData.length > 0) {
+                            const firstTime = currentData[0].time;
+                            const lastTime = currentData[currentData.length - 1].time;
+                            console.log(`Main Chart Range: ${firstTime} ~ ${lastTime}`);
+
+                            const inRangeCount = currentBacktestMarkers.filter(m => m.time >= firstTime && m.time <= lastTime).length;
+                            console.log(`Markers in visible Range: ${inRangeCount}`);
+
+                            if (inRangeCount === 0) {
+                                console.warn("No markers match current chart timeframe. Try switching chart interval to '1일'.");
+                            }
+                        }
+
+                        // 마커 크기 및 시인성 조정
+                        const styledMarkers = currentBacktestMarkers.map(m => ({
+                            ...m,
+                            size: 2
+                        }));
+
+                        candleSeries.setMarkers(styledMarkers);
+                        document.getElementById('forceMarkersBtn').style.display = 'block';
+                    }
+                }
+
+                btChart.timeScale().fitContent();
+            } catch (e) {
+                console.error(e);
+                alert('백테스팅 실패');
+            } finally {
+                btn.innerText = originalText;
+                btn.disabled = false;
+            }
+        };
+
+
+        window.addEventListener('resize', () => {
+            const width = document.getElementById('chart').clientWidth;
+            if (chart) chart.applyOptions({ width: width, height: 450 });
+            if (chartRsi) chartRsi.applyOptions({ width: width, height: 150 });
+            if (chartMacd) chartMacd.applyOptions({ width: width, height: 150 });
+            if (btChart) btChart.applyOptions({ width: width, height: 300 });
+        });
+        // 초기 차트 데이터 로드 및 실시간 업데이트 시작
+        updateChart().then(() => {
+            startRealtimeUpdates();
+        });
+
+        console.log("CryptoAuto Dashboard Ready");
+    </script>
+</body>
+
+</html>
